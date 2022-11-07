@@ -8,11 +8,11 @@ import re
 import time
 import random
 import setting
-import openai
 from lxml.html._diffcommand import read_file
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lex_rank import LexRankSummarizer
+from transformers import T5Tokenizer, AutoModelForCausalLM
 
 #文章生成での待機時間の表示
 def progress_cache(i):
@@ -30,7 +30,33 @@ def view_bar(func):
         bar.progress(i + 1)
         func(i)
 
-#テキストの文をランダムに取り出し文章生成
+#テキストの続きを生成
+def make_next(prompt):
+    answer=""
+    tokenizer = T5Tokenizer.from_pretrained("rinna/japanese-gpt2-medium")
+    tokenizer.do_lower_case = True  # due to some bug of tokenizer config loading
+
+    model = AutoModelForCausalLM.from_pretrained("rinna/japanese-gpt2-medium")
+
+    inputs = tokenizer.encode(prompt, add_special_tokens=False, return_tensors="pt")
+
+    outputs = model.generate(
+        inputs, 
+        max_length=200, 
+        do_sample=True, 
+        top_p=0.95, 
+        top_k=60, 
+        no_repeat_ngram_size=2,
+        num_beams=5, 
+        early_stopping=True,
+        num_return_sequences=1
+    )
+    for i, beam_output in enumerate(outputs):
+        answer=answer+tokenizer.decode(beam_output, skip_special_tokens=True)
+    return answer
+
+#テキストの文を要約し文章生成
+@st.cache
 def choice(filepath):
     #テキストの要約
     text = read_file(filepath)
@@ -40,15 +66,10 @@ def choice(filepath):
     plut=""
     for sentence in res:
         plut=plut+str(sentence)
-    #openAIで補足
-    openai.api_key= setting.AP
-    response = openai.Completion.create(
-    engine='ada',
-    prompt=plut,
-    max_tokens=100,
-    stop="\n")
-    return (plut+response['choices'][0]["text"])
-
+    if plut=="":
+        plut="今日"
+    #transformerで補足
+    return make_next(plut)
 
 #タイトルファイルの読み込み関数
 @st.cache
@@ -102,7 +123,7 @@ with st.form(key='profile form'):
         data_dict[index]=cs
 
     #類似度の降順にソート,表示させるのは10件
-    dic2 = sorted(data_dict.items(), key=lambda x:x[1],reverse=True)[0:10]
+    dic2 = sorted(data_dict.items(), key=lambda x:x[1],reverse=True)[0:5]
 
 
     if submit_btn:
