@@ -108,6 +108,7 @@ with st.form(key='profile form'):
         for x in range(len(dic2)):
             st.markdown('作品名：%s ' % titles[dic2[x][0]])
             st.markdown("類似度%.4f" % dic2[x][1])
+            st.write(setting.AP)
 
             #文章生成
             view_bar(progress_cache)
