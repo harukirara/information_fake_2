@@ -11,7 +11,7 @@ import random
 #文章生成での待機時間の表示
 @st.cache
 def progress_cache(i):
-    time.sleep(0.5)
+    time.sleep(0.05)
 
 #プログレスバーの表示
 def view_bar(func):
