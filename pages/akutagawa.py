@@ -7,16 +7,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 import re
 import time
 import random
-import setting
-from lxml.html._diffcommand import read_file
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lex_rank import LexRankSummarizer
-from transformers import T5Tokenizer, AutoModelForCausalLM
 
 #文章生成での待機時間の表示
+@st.cache
 def progress_cache(i):
-    time.sleep(0.025)
+    time.sleep(0.05)
 
 #プログレスバーの表示
 def view_bar(func):
@@ -30,46 +25,13 @@ def view_bar(func):
         bar.progress(i + 1)
         func(i)
 
-#テキストの続きを生成
-def make_next(prompt):
-    answer=""
-    tokenizer = T5Tokenizer.from_pretrained("rinna/japanese-gpt2-medium")
-    tokenizer.do_lower_case = True  # due to some bug of tokenizer config loading
-
-    model = AutoModelForCausalLM.from_pretrained("rinna/japanese-gpt2-medium")
-
-    inputs = tokenizer.encode(prompt, add_special_tokens=False, return_tensors="pt")
-
-    outputs = model.generate(
-        inputs, 
-        max_length=200, 
-        do_sample=True, 
-        top_p=0.95, 
-        top_k=60, 
-        no_repeat_ngram_size=2,
-        num_beams=5, 
-        early_stopping=True,
-        num_return_sequences=1
-    )
-    for i, beam_output in enumerate(outputs):
-        answer=answer+tokenizer.decode(beam_output, skip_special_tokens=True)
-    return answer
-
 #テキストの文を要約し文章生成
-@st.cache
 def choice(filepath):
     #テキストの要約
-    text = read_file(filepath)
-    parser = PlaintextParser.from_string(text, Tokenizer('japanese'))
-    summarizer = LexRankSummarizer()
-    res = summarizer(document=parser.document, sentences_count=2)
-    plut=""
-    for sentence in res:
-        plut=plut+str(sentence)
-    if plut=="":
-        plut="今日"
-    #transformerで補足
-    return make_next(plut)
+    with open(filepath,encoding="utf-8") as file:
+        lines = file.readlines()
+        s_lines = [line.strip() for line in lines]
+    return (random.choice(s_lines))
 
 #タイトルファイルの読み込み関数
 @st.cache
@@ -78,25 +40,24 @@ def get_list_from_file(file_name):
         return f.read().split()
 
 #タイトルファイルの読み込み
-titles = get_list_from_file('./data/ch04/out_000879/book-titles879.txt')
+titles = get_list_from_file('./all_data/out_000879/book-titles879.txt')
 
 #読み込み時間を退屈させないために
 with st.spinner('Wait for it...'):
     time.sleep(2)
-st.balloons()
 st.snow()
 
 #csvファイルの読み込み
-df2=pd.read_csv("./data/ch04/out_000879/tfidf879.csv")
+df2=pd.read_csv("./all_data/out_000879/tfidf879.csv")
 
 #類似度を格納する辞書
 data_dict={}
 
 #tf-idfやカウントモデルの読み込み
-with open("./data/ch04/out_000879/tfidf879model.pkl", 'rb') as f:
+with open("./all_data/out_000879/tfidf879model.pkl", 'rb') as f:
     vectorizer = pickle.load(f)
 
-with open("./data/ch04/out_000879/count879model.pkl", 'rb') as f:
+with open("./all_data/out_000879/count879model.pkl", 'rb') as f:
     counter = pickle.load(f)
 
 #メインの検索部分
@@ -122,7 +83,7 @@ with st.form(key='profile form'):
         data_dict[index]=cs
 
     #類似度の降順にソート,表示させるのは10件
-    dic2 = sorted(data_dict.items(), key=lambda x:x[1],reverse=True)[0:5]
+    dic2 = sorted(data_dict.items(), key=lambda x:x[1],reverse=True)[0:10]
 
 
     if submit_btn:
@@ -133,5 +94,5 @@ with st.form(key='profile form'):
             #文章生成
             view_bar(progress_cache)
             st.write("あらすじ")
-            st.write(choice("./data/ch04/out_000879/%d.txt" % dic2[x][0]))
+            st.write(choice("./all_data/generate/879/%d.txt" % dic2[x][0]))
             st.markdown("---") #区切り線
