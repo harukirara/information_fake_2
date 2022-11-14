@@ -7,6 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import re
 import time
 import random
+from janome.tokenizer import Tokenizer
 
 #文章生成での待機時間の表示
 @st.cache
@@ -66,6 +67,12 @@ with st.form(key='profile form'):
 
     #テキストボックス
     query=st.text_input("クエリ")
+    
+    #形態素解析
+    tokenizer=Tokenizer(wakati=True)
+    query=tokenizer.tokenize(query)
+    query=' '.join(query)
+    
     #ベクトルに変換
     mozinum=np.array([query])
     instr=counter.transform(mozinum)
